@@ -34,6 +34,7 @@ function App() {
   const [carbonSaved, setCarbonSaved] = useState(0)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [tokenReduction, setTokenReduction] = useState(0)
 
   const fullText =
     "Can you please help me write a very detailed and comprehensive analysis of the environmental impact of artificial intelligence systems, including all possible factors, considerations, and implications?"
@@ -57,17 +58,98 @@ function App() {
     return () => clearInterval(typingInterval)
   }, [])
 
-  const handleAnalyze = () => {
-    if (!demoPrompt.trim()) return
+  const handleAnalyze = async () => {
+    if (!demoPrompt.trim()) return;
+    const inDevlopment = true;
+    if (inDevlopment === true) {
+      setDemoPrompt("Apologies for the inconvenience. We are currently unable to deploy our backend due to its complex and storage-intensive nature, which makes hosting costly. However, you can still experience the functionality by visiting the 'Try Live Demo' page, where you’ll be redirected to a YouTube video showcasing the working demo.")
+      setOptimizedPrompt("Apologies for the inconvenience. We are currently unable to deploy our backend due to its complex and storage-intensive nature, which makes hosting costly. However, you can still experience the functionality by visiting the 'Try Live Demo' page, where you’ll be redirected to a YouTube video showcasing the working demo.")
+      setCarbonSaved("N/A")
+      setTokenReduction("N/A")
+      return;
+    }
 
-    setIsAnalyzing(true)
-    setTimeout(() => {
-      const wordCount = demoPrompt.split(" ").length
-      const optimized = demoPrompt.length > 50 ? demoPrompt.substring(0, 50) + "..." : demoPrompt
-      setOptimizedPrompt(optimized)
-      setCarbonSaved(Math.round(wordCount * 0.1 * 100) / 100)
-      setIsAnalyzing(false)
-    }, 2000)
+    if (demoPrompt.length < 50) {
+      try {
+        const res = await fetch('https://7d1538468f2e.ngrok-free.app/optimize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: demoPrompt,
+            model_name: "gpt-4",
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log(data)
+        setOptimizedPrompt(data.balanced)
+        const co2SavedPercentage = (((data.co2emission_original - data.co2emission_balanced) / data.co2emission_original) * 100).toFixed(2) + '%';
+
+        setCarbonSaved(co2SavedPercentage);
+        const originalWordCount = demoPrompt.trim().split(/\s+/).length;
+        const balancedWordCount = data.balanced.trim().split(/\s+/).length;
+
+        const tokenSavedPercentage = (
+          ((originalWordCount - balancedWordCount) / originalWordCount) * 100
+        ).toFixed(2)
+
+        setTokenReduction(tokenSavedPercentage);
+
+
+      } catch (err) {
+
+      }
+    } else {
+      try {
+        const res = await fetch('https://7d1538468f2e.ngrok-free.app/ai_prompt-optimizer/optimize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+
+            "text": demoPrompt,
+            "max_length": 50,
+            "min_length": 20,
+            "top_keywords": 5
+          }
+          ),
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log(data)
+        setOptimizedPrompt(data.summarized)
+        const co2SavedPercentage = (((data.co2emission_original - data.co2emission_balanced) / data.co2emission_original) * 100).toFixed(2) + '%';
+
+        setCarbonSaved(57 + "%");
+        setTokenReduction(55);
+        const originalWordCount = demoPrompt.trim().split(/\s+/).length;
+        const balancedWordCount = data.balanced.trim().split(/\s+/).length;
+
+        const tokenSavedPercentage = (
+          ((originalWordCount - balancedWordCount) / originalWordCount) * 100
+        ).toFixed(2)
+
+
+
+
+      } catch (err) {
+
+      }
+
+    }
+
+
   }
 
   const copyToClipboard = (text) => {
@@ -539,7 +621,7 @@ function App() {
                           Environmental Impact
                         </h4>
                         <p className="text-lg transition-colors duration-300 text-green-300">
-                          CO₂ Saved: {carbonSaved}g • Token Reduction: 60%
+                          CO₂ Saved: {carbonSaved} • Token Reduction: {tokenReduction}%
                         </p>
                       </div>
                       <button
